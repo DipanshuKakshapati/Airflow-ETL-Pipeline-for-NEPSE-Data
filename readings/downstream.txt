@@ -1,0 +1,8 @@
+--------Downstream----------
+Downstream refers to the stages or processes that occur later in the data pipeline. These involve operations that depend on the output of upstream processes. Downstream stages typically include data transformation, loading, analysis, and visualization. For example:
+
+Data Transformation: Modifying, cleaning, or enriching the data as per business requirements.
+Data Loading: Loading the transformed data into a database or data warehouse for further analysis or operational use.
+Data Analysis and Reporting: Performing data analysis and generating reports or dashboards for business intelligence.
+In a data pipeline, downstream components rely on the output from upstream components. 
+Any issues or changes in the upstream processes can directly affect the efficiency, performance, and accuracy of downstream processes.

@@ -1,0 +1,50 @@
+Apache Airflow is an open-source platform designed to programmatically author, schedule, and monitor workflows. It was created at Airbnb in 2014 as a way to handle the company's increasingly complex workflows and was later released as open-source software. Airflow is now part of the Apache Software Foundation.
+
+### Core Concepts
+
+1. **DAGs (Directed Acyclic Graphs):**
+   - **Definition:** A DAG is a collection of all the tasks you want to run, organized in a way that reflects their relationships and dependencies.
+   - **Characteristics:** A DAG is acyclic, which means it does not loop; it has a finite number of tasks and a clear beginning and end.
+
+2. **Operators:**
+   - **Purpose:** Operators determine what actually gets done in a task.
+   - **Types:**
+     - **Action Operators:** Execute a function, like `PythonOperator` or `BashOperator`.
+     - **Transfer Operators:** Move data between systems, like `S3ToRedshiftOperator`.
+     - **Sensor Operators:** Wait for a certain condition to meet, like `HttpSensor` or `S3KeySensor`.
+
+3. **Tasks:**
+   - **Definition:** A task is an instance of an operator. When you define a task, you define what operator to use and configure its parameters.
+
+4. **Task Instances:**
+   - **Description:** A task instance represents a specific run of a task and holds information about the run, such as start time, end time, current state, etc.
+
+5. **Executors:**
+   - **Role:** Executors are the mechanism by which Airflow executes your tasks. Different types of executors include:
+     - **LocalExecutor:** Executes tasks locally in parallel.
+     - **CeleryExecutor:** Uses Celery, a distributed task queue, to manage task execution.
+     - **KubernetesExecutor:** Executes tasks as Kubernetes pods.
+
+6. **Hooks:**
+   - **Function:** Hooks are interfaces to external platforms and databases like MySQL, S3, HDFS, etc. They are used to abstract out the database interactions.
+
+7. **XComs (Cross Communication):**
+   - **Usage:** XComs allow tasks to communicate by pushing and pulling messages/data.
+
+### Features
+
+- **Dynamic:** Airflow pipelines are defined in Python, allowing for dynamic pipeline generation.
+- **Extensible:** It can be extended to suit the needs through custom operators, sensors, hooks, or even using plugins.
+- **Scalable:** Airflow uses a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+
+### How Airflow Works
+
+Airflow has a scheduler that manages the execution of jobs on a trigger or schedule. The Airflow scheduler monitors all tasks and all DAGs and triggers the task instances whose dependencies have been met. Besides the scheduler, Airflow has a rich command-line utility that allows for interaction with DAGs and tasks, and an intuitive Web UI that helps visualize pipelines running in production, monitor progress, and troubleshoot issues.
+
+### Common Use Cases
+
+- **ETL Jobs:** Commonly used to create and manage ETL pipelines (Extract, Transform, Load).
+- **Data Warehousing:** Can be used to manage data warehousing operations.
+- **Machine Learning Pipelines:** Orchestrating parts of machine learning models, like data collection, data processing, model training, and inference.
+
+Apache Airflow is ideal for businesses and data engineers looking for a robust, scalable way to manage complex workflows.

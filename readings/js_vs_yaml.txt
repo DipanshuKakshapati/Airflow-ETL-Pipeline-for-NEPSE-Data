@@ -1,0 +1,35 @@
+Yaml first reads all the data and then tries to seperate the data type. 
+This is the reason why yaml file is not used that often in comparision to json files.
+
+We use json for exchange of data between multiple computers.
+We use yaml files for mainly configurations.
+
+------------------------------------------------------
+Example:
+
+json file:
+
+{
+    "name": "The Ultimate Docker Guide",
+    "price": 169,
+    "is_published": true,
+    "tags": ["software", "devops"],
+    "author": {
+        "first_name": "Mosh",
+        "last_name": "Hamedani"
+    }
+}
+
+yaml file:
+
+---
+
+name: The Ultimate Docker Guide
+price: 169
+is_published: true
+tags:
+    - software
+    - devops
+author:
+    first_name: Mosh
+    last_name: Hamedani

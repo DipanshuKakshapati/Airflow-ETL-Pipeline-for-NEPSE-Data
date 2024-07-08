@@ -1,0 +1,7 @@
+--------Upstream-----------
+Upstream refers to the stages or processes that occur earlier in the data pipeline. These are the steps involved in gathering, extracting, or generating data before it is processed or transformed. For example, in a data pipeline:
+
+Data Collection: Gathering data from various sources such as databases, web scraping, IoT devices, etc.
+Data Extraction: Extracting data from the collected sources, which might include pulling data from APIs, reading files, or executing database queries.
+Data or changes that affect these initial stages are considered upstream events. 
+These can impact all subsequent parts of the pipeline. For instance, changes in data format, source availability, or data extraction logic in the upstream stages will have a ripple effect on all downstream processes.
