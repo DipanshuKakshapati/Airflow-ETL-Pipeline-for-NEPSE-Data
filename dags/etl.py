@@ -8,10 +8,8 @@ import requests
 import pandas as pd
 import io
 
-
 def yesterday_date():
     return (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-
 
 with DAG(
     dag_id="market_etl",
@@ -26,26 +24,17 @@ with DAG(
 ) as dag:
     @task()
     def hit_polygon_api(**context):
-        #stock_ticker = "AMZN"
-        #polygon_api_key = "cHZwKLb2pCvHxpOk4nA4ozx09ODT0rKz"
         date_yesterday = yesterday_date()
-        
-        # Create the URL for aggregate data for the current date
-
-        url = f"https://05c6-110-44-115-243.ngrok-free.app/stocks_data_date?date=2024-07-04"
+        url = f"https://d504-110-34-1-227.ngrok-free.app/stocks_data_date?date={date_yesterday}"
         response = requests.get(url)
-
         response_data = response.json()
 
-        # Check if data is returned from the API
         if 'data' not in response_data or not response_data['data']:
-            # Log the lack of data and raise an exception to skip further task execution
             print("No data received from API. Skipping subsequent tasks.")
             raise AirflowSkipException("No data received from API.")
-
+        
         return response_data
 
-  
     @task
     def flatten_market_data(api_response, **context):
         if 'data' not in api_response:
@@ -53,30 +42,82 @@ with DAG(
 
         data = api_response['data']
         flattened_dataframe = pd.DataFrame(data)
-
-        # Convert 'Close_Date' to datetime if needed (assuming 'Close_Date' holds the date information)
         flattened_dataframe['Close_Date'] = pd.to_datetime(flattened_dataframe['Close_Date'])
+
+        # print(flattened_dataframe.columns)
+        # print(flattened_dataframe.head())
 
         return flattened_dataframe
 
+    @task
+    def create_fact_table(df):
+        fact_table = df[['Symbol', 'Close_Date', 'Total_Traded_Quantity', 'Close_Price_Rs', 'LTP', 'Total_Trades', 'Average_Traded_Price_Rs']].copy()
+        fact_table['PRICE_ID'] = fact_table.apply(lambda x: f"{x['Symbol']}_{x['Close_Date']}", axis=1)
+        fact_table.rename(columns={'Symbol': 'SECURITY_ID', 'Close_Date': 'BUSINESS_DATE', 'Close_Price_Rs': 'CLOSE_PRICE', 'LTP': 'LAST_UPDATED_PRICE', 'Total_Traded_Quantity': 'TOTAL_TRADED_QUANTITY', 'Average_Traded_Price_Rs': 'AVERAGE_TRADED_PRICE'}, inplace=True)
+        return fact_table
 
     @task
-    def load_market_data(flattened_dataframe):
+    def create_security_dimension(df):
+        security_dimension = df[['Symbol', 'Market_Capitalization_Rs__Amt_in_Millions', 'Fifty_Two_Week_High_Rs', 'Fifty_Two_Week_Low_Rs']].drop_duplicates().copy()
+        security_dimension.rename(columns={'Symbol': 'SECURITY_ID', 'Market_Capitalization_Rs__Amt_in_Millions': 'MARKET_CAPITALIZATION', 'Fifty_Two_Week_High_Rs': 'FIFTY_TWO_WEEKS_HIGH', 'Fifty_Two_Week_Low_Rs': 'FIFTY_TWO_WEEKS_LOW'}, inplace=True)
+        return security_dimension
+
+    @task
+    def create_date_dimension(df):
+        date_dimension = df[['Close_Date']].drop_duplicates().copy()
+        date_dimension['YEAR'] = date_dimension['Close_Date'].dt.year
+        date_dimension['MONTH'] = date_dimension['Close_Date'].dt.month
+        date_dimension['WEEK'] = date_dimension['Close_Date'].dt.isocalendar().week
+        date_dimension['DAY'] = date_dimension['Close_Date'].dt.day
+        date_dimension.rename(columns={'Close_Date': 'BUSINESS_DATE'}, inplace=True)
+        return date_dimension
+
+    @task
+    def create_price_dimension(df):
+        price_dimension = df[['Symbol', 'Open_Price_Rs', 'High_Price_Rs', 'Low_Price_Rs', 'Close_Price_Rs', 'LTP', 'Previous_Day_Close_Price_Rs', 'Close_Date']].drop_duplicates().copy()
+        price_dimension['PRICE_ID'] = price_dimension.apply(lambda x: f"{x['Symbol']}_{x['Close_Date']}", axis=1)
+        price_dimension.rename(columns={'Symbol': 'SECURITY_ID', 'Open_Price_Rs': 'OPEN_PRICE', 'High_Price_Rs': 'HIGH_PRICE', 'Low_Price_Rs': 'LOW_PRICE', 'Close_Price_Rs': 'CLOSE_PRICE', 'LTP': 'LAST_UPDATED_PRICE', 'Previous_Day_Close_Price_Rs': 'PREVIOUS_DAY_PRICE'}, inplace=True)
+        return price_dimension
+
+    @task
+    def load_data_to_postgres(fact_table, security_dimension, date_dimension, price_dimension):
         market_database_hook = PostgresHook("market_database_conn")
         market_database_conn = market_database_hook.get_sqlalchemy_engine()
 
-        # Exclude 'Sn' column if it's not needed
-        if 'Sn' in flattened_dataframe.columns:
-            flattened_dataframe = flattened_dataframe.drop(columns=['Sn'])
-
-        flattened_dataframe.to_sql(
-            name="nepse_market_data",
+        fact_table.to_sql(
+            name="fact_table",
             con=market_database_conn,
             if_exists="append",
             index=False
         )
-        return flattened_dataframe
+        security_dimension.to_sql(
+            name="security_dimension",
+            con=market_database_conn,
+            if_exists="append",
+            index=False
+        )
+        date_dimension.to_sql(
+            name="date_dimension",
+            con=market_database_conn,
+            if_exists="append",
+            index=False
+        )
+        price_dimension.to_sql(
+            name="price_dimension",
+            con=market_database_conn,
+            if_exists="append",
+            index=False
+        )
 
+    api_response = hit_polygon_api()
+    flattened_dataframe = flatten_market_data(api_response)
+
+    fact_table = create_fact_table(flattened_dataframe)
+    security_dimension = create_security_dimension(flattened_dataframe)
+    date_dimension = create_date_dimension(flattened_dataframe)
+    price_dimension = create_price_dimension(flattened_dataframe)
+
+    load_data_to_postgres(fact_table, security_dimension, date_dimension, price_dimension)
 
     # @task
     # def upload_to_s3(flattened_dataframe, bucket_name, file_path, **context):
@@ -138,9 +179,9 @@ with DAG(
     #     s3_hook.load_string(string_data=csv_data, bucket_name=target_bucket_name, key=new_file_path, replace=True)
 
     # Task sequence
-    raw_market_data = hit_polygon_api()
-    transformed_market_data = flatten_market_data(raw_market_data)
-    load_market_data(transformed_market_data)
+    # raw_market_data = hit_polygon_api()
+    # transformed_market_data = flatten_market_data(raw_market_data)
+    # load_market_data(transformed_market_data)
     # market_data = load_market_data(transformed_market_data)
     # file_path = upload_to_s3(market_data, bucket_name='nepse-source', file_path='nepse')
     # transformed_csv_positive_data = extract_positive_ltp_records(file_path, source_bucket_name='nepse-source')
