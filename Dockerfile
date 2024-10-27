@@ -7,7 +7,5 @@ COPY requirements.txt /requirements.txt
 # Install any additional dependencies you need
 RUN pip install --no-cache-dir -r /requirements.txt
 
-# Set the default command
-CMD ["webserver"]
-
-
+# Set the default command to start the Airflow webserver
+CMD ["airflow", "webserver"]
